@@ -38,7 +38,7 @@ type postBookResponse struct {
 	Error  string `json:"error,omitempty"`
 }
 
-func getBooks(params *dynapi.None, arg *dynapi.None) (*getBooksResponse, error) {
+func getBooks(ctx *dynapi.Context, params *dynapi.None, arg *dynapi.None) (*getBooksResponse, error) {
 	mtx.RLock()
 	defer mtx.RUnlock()
 	books := make([]*book, 0, len(booksMap))
@@ -48,7 +48,7 @@ func getBooks(params *dynapi.None, arg *dynapi.None) (*getBooksResponse, error) 
 	return &getBooksResponse{Books: books}, nil
 }
 
-func getBook(params *getBookParams, arg *dynapi.None) (*getBookResponse, error) {
+func getBook(ctx *dynapi.Context, params *getBookParams, arg *dynapi.None) (*getBookResponse, error) {
 	mtx.RLock()
 	defer mtx.RUnlock()
 	if book, ok := booksMap[params.Id]; ok {
@@ -58,7 +58,7 @@ func getBook(params *getBookParams, arg *dynapi.None) (*getBookResponse, error) 
 	}
 }
 
-func postBook(params *dynapi.None, book *book) (*postBookResponse, error) {
+func postBook(ctx *dynapi.Context, params *dynapi.None, book *book) (*postBookResponse, error) {
 	mtx.Lock()
 	defer mtx.Unlock()
 	if _, ok := booksMap[book.Id]; ok {
@@ -70,7 +70,7 @@ func postBook(params *dynapi.None, book *book) (*postBookResponse, error) {
 
 func main() {
 	mux := dynapi.New()
-	err := mux.HandleAll("/api", getBooks, getBook, postBook)
+	err := mux.HandleAll("/api", nil, getBooks, getBook, postBook)
 	if err != nil {
 		panic(err)
 	}
