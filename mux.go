@@ -42,6 +42,16 @@ func New() *Mux {
 // Handler returns an HTTP handler for the multiplexer.
 func (m *Mux) Handler() *http.ServeMux { return m.mux }
 
+// HandleAll registers all the provided handler functions.
+func (m *Mux) HandleAll(routePrefix string, fs ...interface{}) error {
+	for _, f := range fs {
+		if err := m.Handle(routePrefix, f); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // Handle registers a handler function.
 // The name of the function must be camelcased.
 // The first segment of the function's name is the HTTP method (get, post, put, delete or patch).
@@ -97,10 +107,11 @@ func (m *Mux) Handle(routePrefix string, f interface{}) error {
 		f := paramsType.Field(i)
 		serviceParams[i] = &serviceParam{strings.ToLower(f.Name), f.Offset, f.Type.Kind()}
 	}
+	hasParams, hasInput := paramsType != noneType, argType != noneType
 	log.Printf("registering handler: %s %s", method, route)
 	mm[method] = func(w http.ResponseWriter, req *http.Request) {
 		params := noneValue
-		if paramsType != noneType {
+		if hasParams {
 			params = reflect.New(paramsType)
 			suffix := req.URL.Path[len(route):]
 			if suffix != "" {
@@ -125,7 +136,7 @@ func (m *Mux) Handle(routePrefix string, f interface{}) error {
 			}
 		}
 		in := noneValue
-		if argType != noneType {
+		if hasInput {
 			in = reflect.New(argType)
 			dec := json.NewDecoder(req.Body)
 			err := dec.Decode(in.Interface())

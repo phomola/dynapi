@@ -70,15 +70,7 @@ func postBook(params *dynapi.None, book *book) (*postBookResponse, error) {
 
 func main() {
 	mux := dynapi.New()
-	err := mux.Handle("/api", getBooks)
-	if err != nil {
-		panic(err)
-	}
-	err = mux.Handle("/api", getBook)
-	if err != nil {
-		panic(err)
-	}
-	err = mux.Handle("/api", postBook)
+	err := mux.HandleAll("/api", getBooks, getBook, postBook)
 	if err != nil {
 		panic(err)
 	}
