@@ -47,7 +47,7 @@ func (m *Mux) Handler() *http.ServeMux { return m.mux }
 // The first segment of the function's name is the HTTP method (get, post, put, delete or patch).
 // The remainder of the function's name specifies the route.
 // For example, the route for getBooksAll is /books/all.
-func (m *Mux) Handle(f interface{}) error {
+func (m *Mux) Handle(routePrefix string, f interface{}) error {
 	v := reflect.ValueOf(f)
 	if v.Kind() != reflect.Func {
 		return fmt.Errorf("mux handler must be a function, got '%v' (%T)", f, f)
@@ -75,7 +75,7 @@ func (m *Mux) Handle(f interface{}) error {
 	default:
 		return fmt.Errorf("unknown HTTP method '%s' in '%s'", comps[0], n)
 	}
-	route := "/" + strings.Join(comps[1:], "/") + "/"
+	route := routePrefix + "/" + strings.Join(comps[1:], "/") + "/"
 	mm, ok := m.routes[route]
 	if !ok {
 		mm = make(map[string]func(http.ResponseWriter, *http.Request))
