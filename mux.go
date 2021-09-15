@@ -86,6 +86,21 @@ func (m *Mux) Handle(routePrefix string, ctx interface{}, f interface{}) error {
 	if t.NumOut() != 2 {
 		return fmt.Errorf("handler functions must return two values")
 	}
+	if t.In(0).Kind() != reflect.Ptr {
+		return fmt.Errorf("the first argument of handler functions must be a pointer")
+	}
+	if t.In(1).Kind() != reflect.Ptr {
+		return fmt.Errorf("the second argument of handler functions must be a pointer")
+	}
+	if t.In(2).Kind() != reflect.Ptr {
+		return fmt.Errorf("the third argument of handler functions must be a pointer")
+	}
+	if t.Out(0).Kind() != reflect.Ptr {
+		return fmt.Errorf("the first value returned by handler functions must be a pointer")
+	}
+	if t.Out(1) != reflect.TypeOf((*error)(nil)).Elem() {
+		return fmt.Errorf("the second value returned by handler functions must be an error")
+	}
 	n := runtime.FuncForPC(v.Pointer()).Name()
 	comps := strings.Split(n, ".")
 	n = comps[len(comps)-1]
