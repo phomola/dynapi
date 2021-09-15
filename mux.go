@@ -39,6 +39,11 @@ func New() *Mux {
 	return &Mux{mux: http.NewServeMux(), routes: make(map[string]map[string]func(http.ResponseWriter, *http.Request))}
 }
 
+// FinishSetup frees up some resources that are no longer needed after setting the service up.
+func (m *Mux) FinishSetup() {
+	m.routes = nil
+}
+
 // Handler returns an HTTP handler for the multiplexer.
 func (m *Mux) Handler() *http.ServeMux { return m.mux }
 
@@ -181,8 +186,7 @@ func (m *Mux) Handle(routePrefix string, ctx interface{}, f interface{}) error {
 		if hasInput {
 			in = reflect.New(argType)
 			dec := json.NewDecoder(req.Body)
-			err := dec.Decode(in.Interface())
-			if err != nil {
+			if err := dec.Decode(in.Interface()); err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
@@ -194,8 +198,7 @@ func (m *Mux) Handle(routePrefix string, ctx interface{}, f interface{}) error {
 			return
 		}
 		enc := json.NewEncoder(w)
-		err := enc.Encode(out)
-		if err != nil {
+		if err := enc.Encode(out); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}

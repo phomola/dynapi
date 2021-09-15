@@ -12,6 +12,7 @@ func main() {
 	if err := mux.HandleService("/api", s); err != nil {
 		panic(err)
 	}
+	mux.FinishSetup()
 	if err := http.ListenAndServe(":8080", mux.Handler()); err != nil {
 		panic(err)
 	}
