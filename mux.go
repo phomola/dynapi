@@ -28,14 +28,6 @@ type serviceParam struct {
 // It can be used in handlers to indicate that they have no parameters or input object.
 type None struct{}
 
-// Context is a call context passed to the handler.
-type Context struct {
-	// Data can contain custom data provided when the handler was reigstered.
-	Data interface{}
-	// Request is the underlying HTTP request.
-	Request *http.Request
-}
-
 // Mux is an API multiplexer.
 type Mux struct {
 	mux    *http.ServeMux
@@ -51,9 +43,21 @@ func New() *Mux {
 func (m *Mux) Handler() *http.ServeMux { return m.mux }
 
 // HandleAll registers all the provided handler functions.
-func (m *Mux) HandleAll(routePrefix string, data interface{}, fs ...interface{}) error {
+func (m *Mux) HandleAll(routePrefix string, ctx interface{}, fs ...interface{}) error {
 	for _, f := range fs {
-		if err := m.Handle(routePrefix, data, f); err != nil {
+		if err := m.Handle(routePrefix, ctx, f); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// HandleService registers an object's functions as handlers.
+func (m *Mux) HandleService(routePrefix string, s interface{}) error {
+	t := reflect.TypeOf(s)
+	for i := 0; i < t.NumMethod(); i++ {
+		mt := t.Method(i)
+		if err := m.Handle(routePrefix, s, mt.Func.Interface()); err != nil {
 			return err
 		}
 	}
@@ -65,7 +69,7 @@ func (m *Mux) HandleAll(routePrefix string, data interface{}, fs ...interface{})
 // The first segment of the function's name is the HTTP method (get, post, put, delete or patch).
 // The remainder of the function's name specifies the route.
 // For example, the route for getBooksAll is /books/all.
-func (m *Mux) Handle(routePrefix string, data interface{}, f interface{}) error {
+func (m *Mux) Handle(routePrefix string, ctx interface{}, f interface{}) error {
 	v := reflect.ValueOf(f)
 	if v.Kind() != reflect.Func {
 		return fmt.Errorf("mux handler must be a function, got '%v' (%T)", f, f)
@@ -110,13 +114,16 @@ func (m *Mux) Handle(routePrefix string, data interface{}, f interface{}) error 
 		return fmt.Errorf("handler for '%s' (%s) already registered (can't register '%s')", route, method, n)
 	}
 	paramsType, argType := t.In(1).Elem(), t.In(2).Elem()
+	pattern := route
 	serviceParams := make([]*serviceParam, paramsType.NumField())
 	for i := 0; i < paramsType.NumField(); i++ {
 		f := paramsType.Field(i)
-		serviceParams[i] = &serviceParam{strings.ToLower(f.Name), f.Offset, f.Type.Kind()}
+		n := strings.ToLower(f.Name)
+		serviceParams[i] = &serviceParam{n, f.Offset, f.Type.Kind()}
+		pattern += "{" + n + "}/"
 	}
 	hasParams, hasInput := paramsType != noneType, argType != noneType
-	log.Printf("registering handler: %s %s", method, route)
+	log.Printf("registering handler: %s %s (%s)", method, route, pattern)
 	mm[method] = func(w http.ResponseWriter, req *http.Request) {
 		params := noneValue
 		if hasParams {
@@ -153,7 +160,6 @@ func (m *Mux) Handle(routePrefix string, data interface{}, f interface{}) error 
 				return
 			}
 		}
-		ctx := &Context{Data: data, Request: req}
 		r := v.Call([]reflect.Value{reflect.ValueOf(ctx), params, in})
 		out, err2 := r[0].Interface(), r[1].Interface()
 		if err2 != nil {
