@@ -19,7 +19,8 @@ type getBooksResponse struct {
 }
 
 type getBookParams struct {
-	Id string
+	Id   string
+	Test complex64
 }
 
 type getBookResponse struct {

@@ -75,6 +75,12 @@ func (m *Mux) Handle(routePrefix string, ctx interface{}, f interface{}) error {
 		return fmt.Errorf("mux handler must be a function, got '%v' (%T)", f, f)
 	}
 	t := v.Type()
+	if t.NumIn() != 3 {
+		return fmt.Errorf("handler functions must take three parameters")
+	}
+	if t.NumOut() != 2 {
+		return fmt.Errorf("handler functions must return two values")
+	}
 	n := runtime.FuncForPC(v.Pointer()).Name()
 	comps := strings.Split(n, ".")
 	n = comps[len(comps)-1]
@@ -118,11 +124,15 @@ func (m *Mux) Handle(routePrefix string, ctx interface{}, f interface{}) error {
 	serviceParams := make([]*serviceParam, paramsType.NumField())
 	for i := 0; i < paramsType.NumField(); i++ {
 		f := paramsType.Field(i)
+		if f.Type.Kind() != reflect.String && f.Type.Kind() != reflect.Int && f.Type.Kind() != reflect.Float32 && f.Type.Kind() != reflect.Float64 {
+			return fmt.Errorf("a value of type '%s' can't be a handler parameter", f.Type.Kind())
+		}
 		n := strings.ToLower(f.Name)
 		serviceParams[i] = &serviceParam{n, f.Offset, f.Type.Kind()}
 		pattern += "{" + n + "}/"
 	}
 	hasParams, hasInput := paramsType != noneType, argType != noneType
+	ctxVal := reflect.ValueOf(ctx)
 	log.Printf("registering handler: %s %s (%s)", method, route, pattern)
 	mm[method] = func(w http.ResponseWriter, req *http.Request) {
 		params := noneValue
@@ -146,6 +156,23 @@ func (m *Mux) Handle(routePrefix string, ctx interface{}, f interface{}) error {
 							return
 						}
 						*(*int)(unsafe.Pointer(params.Pointer() + p.offset)) = n
+					case reflect.Float32:
+						x, err := strconv.ParseFloat(v, 32)
+						if err != nil {
+							http.Error(w, err.Error(), http.StatusInternalServerError)
+							return
+						}
+						*(*float32)(unsafe.Pointer(params.Pointer() + p.offset)) = float32(x)
+					case reflect.Float64:
+						x, err := strconv.ParseFloat(v, 64)
+						if err != nil {
+							http.Error(w, err.Error(), http.StatusInternalServerError)
+							return
+						}
+						*(*float64)(unsafe.Pointer(params.Pointer() + p.offset)) = x
+					default:
+						http.Error(w, fmt.Sprintf("a value of type '%s' can't be a handler parameter", p.kind), http.StatusInternalServerError)
+						return
 					}
 				}
 			}
@@ -160,7 +187,7 @@ func (m *Mux) Handle(routePrefix string, ctx interface{}, f interface{}) error {
 				return
 			}
 		}
-		r := v.Call([]reflect.Value{reflect.ValueOf(ctx), params, in})
+		r := v.Call([]reflect.Value{ctxVal, params, in})
 		out, err2 := r[0].Interface(), r[1].Interface()
 		if err2 != nil {
 			http.Error(w, err2.(error).Error(), http.StatusInternalServerError)
