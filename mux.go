@@ -28,6 +28,11 @@ type serviceParam struct {
 // It can be used in handlers to indicate that they have no parameters or input object.
 type None struct{}
 
+// HandlerContext is a context associated with a request.
+type HandlerContext struct {
+	Request *http.Request
+}
+
 // Mux is an API multiplexer.
 type Mux struct {
 	mux    *http.ServeMux
@@ -80,8 +85,8 @@ func (m *Mux) Handle(routePrefix string, ctx interface{}, f interface{}) error {
 		return fmt.Errorf("mux handler must be a function, got '%v' (%T)", f, f)
 	}
 	t := v.Type()
-	if t.NumIn() != 3 {
-		return fmt.Errorf("handler functions must take three parameters")
+	if t.NumIn() != 4 {
+		return fmt.Errorf("handler functions must take four parameters")
 	}
 	if t.NumOut() != 2 {
 		return fmt.Errorf("handler functions must return two values")
@@ -89,11 +94,14 @@ func (m *Mux) Handle(routePrefix string, ctx interface{}, f interface{}) error {
 	if t.In(0).Kind() != reflect.Ptr {
 		return fmt.Errorf("the first argument of handler functions must be a pointer")
 	}
-	if t.In(1).Kind() != reflect.Ptr {
-		return fmt.Errorf("the second argument of handler functions must be a pointer")
+	if t.In(1) != reflect.TypeOf((*HandlerContext)(nil)) {
+		return fmt.Errorf("the second argument of handler functions must be a pointer to a handler context")
 	}
 	if t.In(2).Kind() != reflect.Ptr {
 		return fmt.Errorf("the third argument of handler functions must be a pointer")
+	}
+	if t.In(3).Kind() != reflect.Ptr {
+		return fmt.Errorf("the fourth argument of handler functions must be a pointer")
 	}
 	if t.Out(0).Kind() != reflect.Ptr {
 		return fmt.Errorf("the first value returned by handler functions must be a pointer")
@@ -139,7 +147,7 @@ func (m *Mux) Handle(routePrefix string, ctx interface{}, f interface{}) error {
 	if _, ok := mm[method]; ok {
 		return fmt.Errorf("handler for '%s' (%s) already registered (can't register '%s')", route, method, n)
 	}
-	paramsType, argType := t.In(1).Elem(), t.In(2).Elem()
+	paramsType, argType := t.In(2).Elem(), t.In(3).Elem()
 	pattern := route
 	serviceParams := make([]*serviceParam, paramsType.NumField())
 	for i := 0; i < paramsType.NumField(); i++ {
@@ -206,7 +214,8 @@ func (m *Mux) Handle(routePrefix string, ctx interface{}, f interface{}) error {
 				return
 			}
 		}
-		r := v.Call([]reflect.Value{ctxVal, params, in})
+		handlerCtx := &HandlerContext{req}
+		r := v.Call([]reflect.Value{ctxVal, reflect.ValueOf(handlerCtx), params, in})
 		out, err2 := r[0].Interface(), r[1].Interface()
 		if err2 != nil {
 			http.Error(w, err2.(error).Error(), http.StatusInternalServerError)

@@ -6,7 +6,7 @@ type getBooksResponse struct {
 	Books []*book `json:"books"`
 }
 
-func (s *BookService) GetBooks(params *dynapi.None, arg *dynapi.None) (*getBooksResponse, error) {
+func (s *BookService) GetBooks(ctx *dynapi.HandlerContext, params *dynapi.None, arg *dynapi.None) (*getBooksResponse, error) {
 	s.mtx.RLock()
 	defer s.mtx.RUnlock()
 	books := make([]*book, 0, len(s.booksMap))

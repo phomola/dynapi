@@ -11,7 +11,7 @@ type getBookResponse struct {
 	Book *book `json:"book,omitempty"`
 }
 
-func (s *BookService) GetBook(params *getBookParams, arg *dynapi.None) (*getBookResponse, error) {
+func (s *BookService) GetBook(ctx *dynapi.HandlerContext, params *getBookParams, arg *dynapi.None) (*getBookResponse, error) {
 	s.mtx.RLock()
 	defer s.mtx.RUnlock()
 	if book, ok := s.booksMap[params.Id]; ok {
