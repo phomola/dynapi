@@ -112,7 +112,7 @@ func (m *Mux) Handle(routePrefix string, ctx interface{}, f interface{}) error {
 	n := runtime.FuncForPC(v.Pointer()).Name()
 	comps := strings.Split(n, ".")
 	n = comps[len(comps)-1]
-	comps = splitCamelcasedString(n)
+	comps = SplitCamelcasedString(n)
 	for i, comp := range comps {
 		comps[i] = strings.ToLower(comp)
 	}

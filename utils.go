@@ -2,14 +2,22 @@ package dynapi
 
 import "unicode"
 
-func splitCamelcasedString(s string) []string {
+func SplitCamelcasedString(s string) []string {
 	var (
-		comps []string
-		start int
+		comps  []string
+		start  int
+		locked bool
 	)
 	runes := []rune(s)
 	for i, r := range runes {
-		if i > 0 && unicode.IsUpper(r) {
+		switch {
+		case i-start == 1 && unicode.IsUpper(r):
+			locked = true
+		case locked && unicode.IsLower(r):
+			comps = append(comps, string(runes[start:i-1]))
+			start = i - 1
+			locked = false
+		case i > 0 && !locked && unicode.IsUpper(r):
 			comps = append(comps, string(runes[start:i]))
 			start = i
 		}
