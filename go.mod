@@ -1,3 +1,3 @@
 module github.com/phomola/dynapi
 
-go 1.15
+go 1.17
