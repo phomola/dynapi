@@ -2,6 +2,7 @@ package dynapi
 
 import "unicode"
 
+// SplitCamelcasedString split a camelcase string.
 func SplitCamelcasedString(s string) []string {
 	var (
 		comps  []string

@@ -1,4 +1,4 @@
-// Dynapi is a simple API multiplexer.
+// Package dynapi is a simple API multiplexer.
 package dynapi
 
 import (
@@ -176,28 +176,28 @@ func (m *Mux) Handle(routePrefix string, ctx interface{}, f interface{}) error {
 					v := paramsSlice[i]
 					switch p.kind {
 					case reflect.String:
-						*(*string)(unsafe.Pointer(params.Pointer() + p.offset)) = v
+						*(*string)(unsafe.Add(params.UnsafePointer(), p.offset)) = v
 					case reflect.Int:
 						n, err := strconv.Atoi(v)
 						if err != nil {
 							http.Error(w, err.Error(), http.StatusInternalServerError)
 							return
 						}
-						*(*int)(unsafe.Pointer(params.Pointer() + p.offset)) = n
+						*(*int)(unsafe.Add(params.UnsafePointer(), p.offset)) = n
 					case reflect.Float32:
 						x, err := strconv.ParseFloat(v, 32)
 						if err != nil {
 							http.Error(w, err.Error(), http.StatusInternalServerError)
 							return
 						}
-						*(*float32)(unsafe.Pointer(params.Pointer() + p.offset)) = float32(x)
+						*(*float32)(unsafe.Add(params.UnsafePointer(), p.offset)) = float32(x)
 					case reflect.Float64:
 						x, err := strconv.ParseFloat(v, 64)
 						if err != nil {
 							http.Error(w, err.Error(), http.StatusInternalServerError)
 							return
 						}
-						*(*float64)(unsafe.Pointer(params.Pointer() + p.offset)) = x
+						*(*float64)(unsafe.Add(params.UnsafePointer(), p.offset)) = x
 					default:
 						http.Error(w, fmt.Sprintf("a value of type '%s' can't be a handler parameter", p.kind), http.StatusInternalServerError)
 						return
